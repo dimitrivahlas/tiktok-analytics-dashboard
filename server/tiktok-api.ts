@@ -72,11 +72,13 @@ export class TikTokApiService {
 
   constructor() {
     this.apiKey = process.env.TIKTOK_API_KEY || '';
-    this.baseUrl = 'https://tiktok-video-data.p.rapidapi.com';
+    this.baseUrl = 'https://tiktok-api-scraper.p.rapidapi.com';
 
     if (!this.apiKey) {
       console.warn('TIKTOK_API_KEY environment variable is not set');
     }
+    
+    console.log('TikTok API Service initialized with API key:', this.apiKey ? 'KEY_IS_SET' : 'MISSING_KEY');
   }
 
   // Fetch user profile information by username
@@ -84,11 +86,14 @@ export class TikTokApiService {
     try {
       console.log(`Fetching TikTok profile for username: ${username}`);
       
-      const response = await axios.get(`${this.baseUrl}/user/info`, {
-        params: { unique_id: username },
+      // Remove @ symbol if present
+      const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
+      
+      const response = await axios.get(`${this.baseUrl}/user`, {
+        params: { username: cleanUsername },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
-          'X-RapidAPI-Host': 'tiktok-video-data.p.rapidapi.com'
+          'X-RapidAPI-Host': 'tiktok-api-scraper.p.rapidapi.com'
         }
       });
 
@@ -109,14 +114,17 @@ export class TikTokApiService {
     try {
       console.log(`Fetching TikTok videos for username: ${username}, limit: ${limit}`);
       
-      const response = await axios.get(`${this.baseUrl}/feed/user`, {
+      // Remove @ symbol if present
+      const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
+      
+      const response = await axios.get(`${this.baseUrl}/user/videos`, {
         params: { 
-          unique_id: username, 
+          username: cleanUsername, 
           count: limit
         },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
-          'X-RapidAPI-Host': 'tiktok-video-data.p.rapidapi.com'
+          'X-RapidAPI-Host': 'tiktok-api-scraper.p.rapidapi.com'
         }
       });
 
@@ -133,32 +141,35 @@ export class TikTokApiService {
     }
   }
 
-  // Convert TikTok API video format to our application's video format
-  convertToAppVideo(tiktokVideo: TikTokVideoData, accountId: number): InsertVideo {
-    // Get hashtags from the API response if available or extract from description
-    let hashtags: string[] = [];
+  // Convert TikTok API format to our application's video format
+  convertToAppVideo(tiktokVideo: any, accountId: number): InsertVideo {
+    console.log('Converting TikTok video to app format:', 
+      JSON.stringify({
+        id: tiktokVideo.id || tiktokVideo.video_id,
+        desc: tiktokVideo.desc || tiktokVideo.description || 'No description'
+      })
+    );
     
-    if (tiktokVideo.hashtags && tiktokVideo.hashtags.length > 0) {
-      // Use API-provided hashtags
-      hashtags = tiktokVideo.hashtags.map(tag => tag.name);
-    } else {
-      // Extract hashtags from description as fallback
-      const hashtagRegex = /#(\w+)/g;
-      let match;
-      while ((match = hashtagRegex.exec(tiktokVideo.desc)) !== null) {
-        hashtags.push(match[1]);
-      }
+    // Handle different API response formats
+    let hashtags: string[] = [];
+    let description = tiktokVideo.desc || tiktokVideo.description || '';
+    
+    // Extract hashtags from description
+    const hashtagRegex = /#(\w+)/g;
+    let match;
+    while ((match = hashtagRegex.exec(description)) !== null) {
+      hashtags.push(match[1]);
     }
 
     return {
       accountId,
-      title: tiktokVideo.desc || 'No description',
-      thumbnailUrl: tiktokVideo.cover || tiktokVideo.originCover || tiktokVideo.dynamicCover,
-      videoUrl: tiktokVideo.url,
-      views: tiktokVideo.playCount || 0,
-      likes: tiktokVideo.diggCount || 0,
-      comments: tiktokVideo.commentCount || 0,
-      shares: tiktokVideo.shareCount || 0,
+      title: description || 'No description',
+      thumbnailUrl: tiktokVideo.cover || tiktokVideo.thumbnail_url || tiktokVideo.cover_image_url || '',
+      videoUrl: tiktokVideo.url || tiktokVideo.video_url || '',
+      views: tiktokVideo.playCount || tiktokVideo.play_count || tiktokVideo.stats?.playCount || tiktokVideo.stats?.play_count || 0,
+      likes: tiktokVideo.diggCount || tiktokVideo.like_count || tiktokVideo.stats?.diggCount || tiktokVideo.stats?.like_count || 0,
+      comments: tiktokVideo.commentCount || tiktokVideo.comment_count || tiktokVideo.stats?.commentCount || tiktokVideo.stats?.comment_count || 0,
+      shares: tiktokVideo.shareCount || tiktokVideo.share_count || tiktokVideo.stats?.shareCount || tiktokVideo.stats?.share_count || 0,
       hashtags
     };
   }
