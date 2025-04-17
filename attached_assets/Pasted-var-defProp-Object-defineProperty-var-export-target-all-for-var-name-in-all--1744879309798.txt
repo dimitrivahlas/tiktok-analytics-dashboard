@@ -1,0 +1,805 @@
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// server/index.ts
+import express2 from "express";
+import session from "express-session";
+
+// server/routes.ts
+import { createServer } from "http";
+
+// shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  insertTikTokAccountSchema: () => insertTikTokAccountSchema,
+  insertUserSchema: () => insertUserSchema,
+  insertVideoSchema: () => insertVideoSchema,
+  loginSchema: () => loginSchema,
+  registerSchema: () => registerSchema,
+  tiktokAccounts: () => tiktokAccounts,
+  tiktokAccountsRelations: () => tiktokAccountsRelations,
+  tiktokProfileSchema: () => tiktokProfileSchema,
+  users: () => users,
+  usersRelations: () => usersRelations,
+  videos: () => videos,
+  videosRelations: () => videosRelations
+});
+import { pgTable, text, serial, integer, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+import { relations } from "drizzle-orm";
+var users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  email: text("email").notNull().unique()
+});
+var tiktokAccounts = pgTable("tiktok_accounts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  username: text("username").notNull(),
+  profileUrl: text("profile_url").notNull()
+});
+var videos = pgTable("videos", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id").notNull().references(() => tiktokAccounts.id),
+  title: text("title").notNull(),
+  thumbnailUrl: text("thumbnail_url").notNull(),
+  videoUrl: text("video_url").notNull(),
+  views: integer("views").notNull().default(0),
+  likes: integer("likes").notNull().default(0),
+  comments: integer("comments").notNull().default(0),
+  shares: integer("shares").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  hashtags: text("hashtags").array()
+});
+var usersRelations = relations(users, ({ many }) => ({
+  tiktokAccounts: many(tiktokAccounts)
+}));
+var tiktokAccountsRelations = relations(tiktokAccounts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tiktokAccounts.userId],
+    references: [users.id]
+  }),
+  videos: many(videos)
+}));
+var videosRelations = relations(videos, ({ one }) => ({
+  account: one(tiktokAccounts, {
+    fields: [videos.accountId],
+    references: [tiktokAccounts.id]
+  })
+}));
+var insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  email: true
+});
+var insertTikTokAccountSchema = createInsertSchema(tiktokAccounts).pick({
+  userId: true,
+  username: true,
+  profileUrl: true
+});
+var insertVideoSchema = createInsertSchema(videos).pick({
+  accountId: true,
+  title: true,
+  thumbnailUrl: true,
+  videoUrl: true,
+  views: true,
+  likes: true,
+  comments: true,
+  shares: true,
+  hashtags: true
+});
+var loginSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters")
+});
+var registerSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters")
+});
+var tiktokProfileSchema = z.object({
+  profileUrl: z.string().url("Please enter a valid URL").refine(
+    (url) => url.includes("tiktok.com/"),
+    "Please enter a valid TikTok profile URL"
+  )
+});
+
+// server/db.ts
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import ws from "ws";
+neonConfig.webSocketConstructor = ws;
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL must be set. Did you forget to provision a database?"
+  );
+}
+var pool = new Pool({ connectionString: process.env.DATABASE_URL });
+var db = drizzle({ client: pool, schema: schema_exports });
+
+// server/storage.ts
+import { eq, desc, asc } from "drizzle-orm";
+
+// server/tiktok-api.ts
+import axios from "axios";
+var TikTokApiService = class {
+  apiKey;
+  baseUrl;
+  constructor() {
+    this.apiKey = process.env.TIKTOK_API_KEY || "";
+    this.baseUrl = "https://tokapi-mobile-version.p.rapidapi.com";
+    if (!this.apiKey) {
+      console.warn("TIKTOK_API_KEY environment variable is not set");
+    }
+    console.log("TikTok API Service initialized with API key:", this.apiKey ? "KEY_IS_SET" : "MISSING_KEY");
+  }
+  // Fetch user profile information by username
+  async getUserProfile(username) {
+    try {
+      console.log(`Fetching TikTok profile for username: ${username}`);
+      const cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+      const response = await axios.get(`${this.baseUrl}/v1/user`, {
+        params: { username: cleanUsername },
+        headers: {
+          "X-RapidAPI-Key": this.apiKey,
+          "X-RapidAPI-Host": "tokapi-mobile-version.p.rapidapi.com"
+        }
+      });
+      if (!response.data || response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      console.log(`Successfully retrieved profile for ${username}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching TikTok user profile:", error?.response?.data || error.message || error);
+      throw new Error(`Failed to fetch TikTok user profile: ${error?.response?.data?.message || error.message || "Unknown error"}`);
+    }
+  }
+  // Fetch user videos by username
+  async getUserVideos(username, limit = 30) {
+    try {
+      console.log(`Fetching TikTok videos for username: ${username}, limit: ${limit}`);
+      const cleanUsername = username.startsWith("@") ? username.substring(1) : username;
+      const response = await axios.get(`${this.baseUrl}/v1/user/posts`, {
+        params: {
+          username: cleanUsername,
+          count: limit,
+          cursor: 0
+        },
+        headers: {
+          "X-RapidAPI-Key": this.apiKey,
+          "X-RapidAPI-Host": "tokapi-mobile-version.p.rapidapi.com"
+        }
+      });
+      if (!response.data || response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      const videos2 = response.data;
+      console.log(`Successfully retrieved ${videos2.length} videos for ${username}`);
+      return videos2;
+    } catch (error) {
+      console.error("Error fetching TikTok user videos:", error?.response?.data || error.message || error);
+      throw new Error(`Failed to fetch TikTok user videos: ${error?.response?.data?.message || error.message || "Unknown error"}`);
+    }
+  }
+  // Convert TikTok API format to our application's video format
+  convertToAppVideo(tiktokVideo, accountId) {
+    console.log(
+      "Converting TikTok video to app format:",
+      JSON.stringify({
+        id: tiktokVideo.id || tiktokVideo.video_id,
+        desc: tiktokVideo.desc || tiktokVideo.description || "No description"
+      })
+    );
+    let hashtags = [];
+    let description = tiktokVideo.desc || tiktokVideo.description || "";
+    const hashtagRegex = /#(\w+)/g;
+    let match;
+    while ((match = hashtagRegex.exec(description)) !== null) {
+      hashtags.push(match[1]);
+    }
+    return {
+      accountId,
+      title: description || "No description",
+      thumbnailUrl: tiktokVideo.cover || tiktokVideo.thumbnail_url || tiktokVideo.cover_image_url || "",
+      videoUrl: tiktokVideo.url || tiktokVideo.video_url || "",
+      views: tiktokVideo.playCount || tiktokVideo.play_count || tiktokVideo.stats?.playCount || tiktokVideo.stats?.play_count || 0,
+      likes: tiktokVideo.diggCount || tiktokVideo.like_count || tiktokVideo.stats?.diggCount || tiktokVideo.stats?.like_count || 0,
+      comments: tiktokVideo.commentCount || tiktokVideo.comment_count || tiktokVideo.stats?.commentCount || tiktokVideo.stats?.comment_count || 0,
+      shares: tiktokVideo.shareCount || tiktokVideo.share_count || tiktokVideo.stats?.shareCount || tiktokVideo.stats?.share_count || 0,
+      hashtags
+    };
+  }
+  // Handle API errors
+  handleApiError(error) {
+    console.error("TikTok API Error:", error.message || error);
+    throw new Error(`TikTok API Error: ${error.message || "Unknown error"}`);
+  }
+};
+var tiktokApiService = new TikTokApiService();
+
+// server/storage.ts
+var DatabaseStorage = class {
+  // User methods
+  async getUser(id) {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+  async getUserByEmail(email) {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+  async getUserByUsername(username) {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+  async createUser(insertUser) {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  // TikTok Account methods
+  async getTikTokAccountsByUserId(userId) {
+    return await db.select().from(tiktokAccounts).where(eq(tiktokAccounts.userId, userId));
+  }
+  async createTikTokAccount(insertAccount) {
+    const [account] = await db.insert(tiktokAccounts).values(insertAccount).returning();
+    try {
+      await this.fetchAndSaveTikTokVideos(account.id, insertAccount.username);
+    } catch (error) {
+      console.error("Failed to fetch TikTok videos:", error);
+      await this.createMockVideos(account.id);
+    }
+    return account;
+  }
+  // Video methods
+  async getVideosByAccountId(accountId) {
+    return await db.select().from(videos).where(eq(videos.accountId, accountId));
+  }
+  async getTopVideosByAccountId(accountId, limit) {
+    return await db.select().from(videos).where(eq(videos.accountId, accountId)).orderBy(desc(videos.views)).limit(limit);
+  }
+  async getBottomVideosByAccountId(accountId, limit) {
+    return await db.select().from(videos).where(eq(videos.accountId, accountId)).orderBy(asc(videos.views)).limit(limit);
+  }
+  async createVideo(insertVideo) {
+    const [video] = await db.insert(videos).values(insertVideo).returning();
+    return video;
+  }
+  async deleteVideosByAccountId(accountId) {
+    await db.delete(videos).where(eq(videos.accountId, accountId));
+  }
+  async refreshAccountVideos(accountId, newVideos) {
+    await db.transaction(async (tx) => {
+      await tx.delete(videos).where(eq(videos.accountId, accountId));
+      if (newVideos.length > 0) {
+        await tx.insert(videos).values(newVideos);
+      }
+    });
+  }
+  // Helper method to fetch and save real TikTok videos
+  async fetchAndSaveTikTokVideos(accountId, username) {
+    try {
+      console.log(`Fetching TikTok videos for account: ${username}`);
+      const tiktokVideosResponse = await tiktokApiService.getUserVideos(username);
+      console.log(`Raw API response structure:`, Object.keys(tiktokVideosResponse || {}));
+      let tiktokVideos = [];
+      if (Array.isArray(tiktokVideosResponse)) {
+        tiktokVideos = tiktokVideosResponse;
+      } else if (tiktokVideosResponse && typeof tiktokVideosResponse === "object") {
+        const responseObj = tiktokVideosResponse;
+        if (responseObj.data && Array.isArray(responseObj.data)) {
+          tiktokVideos = responseObj.data;
+        } else if (responseObj.videos && Array.isArray(responseObj.videos)) {
+          tiktokVideos = responseObj.videos;
+        } else if (responseObj.items && Array.isArray(responseObj.items)) {
+          tiktokVideos = responseObj.items;
+        } else if (responseObj.aweme_list && Array.isArray(responseObj.aweme_list)) {
+          tiktokVideos = responseObj.aweme_list;
+        }
+      }
+      if (!tiktokVideos || tiktokVideos.length === 0) {
+        console.warn(`No videos found for TikTok account: ${username}`);
+        throw new Error("No videos found or invalid response format");
+      }
+      console.log(`Found ${tiktokVideos.length} videos for account: ${username}`);
+      if (tiktokVideos.length > 0) {
+        console.log(`Sample video structure:`, Object.keys(tiktokVideos[0]));
+      }
+      const videoInserts = tiktokVideos.map(
+        (video) => tiktokApiService.convertToAppVideo(video, accountId)
+      );
+      if (videoInserts.length > 0) {
+        await db.insert(videos).values(videoInserts);
+        console.log(`Saved ${videoInserts.length} videos to database for account ID: ${accountId}`);
+      }
+    } catch (error) {
+      console.error("Error fetching TikTok videos:", error);
+      throw error;
+    }
+  }
+  // Helper method to create high-quality mock videos for a new account
+  async createMockVideos(accountId) {
+    const topVideos = [
+      {
+        title: "POV: When the sunset hits just right \u{1F305} #sunsetvibes #fyp",
+        thumbnailUrl: "https://images.unsplash.com/photo-1616036740257-9449ea1f6605?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/1",
+        views: 35e5,
+        likes: 853e3,
+        comments: 24200,
+        shares: 176300,
+        hashtags: ["sunsetvibes", "fyp", "naturelover"]
+      },
+      {
+        title: "This recipe changed my life \u{1F35C} #foodtok #cookinghacks",
+        thumbnailUrl: "https://images.unsplash.com/photo-1593829111182-8a2a5b780302?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/2",
+        views: 289e4,
+        likes: 689e3,
+        comments: 18700,
+        shares: 142100,
+        hashtags: ["foodtok", "cookinghacks", "easyrecipe"]
+      },
+      {
+        title: "NYC apartment tour \u{1F5FD} How I transformed 500sqft #homedecor",
+        thumbnailUrl: "https://images.unsplash.com/photo-1598928636135-d146006ff4be?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/3",
+        views: 175e4,
+        likes: 365e3,
+        comments: 21200,
+        shares: 81500,
+        hashtags: ["homedecor", "apartmenttour", "transformation"]
+      }
+    ];
+    const bottomVideos = [
+      {
+        title: "My honest opinion on sustainable makeup brands #greenbeauty",
+        thumbnailUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/4",
+        views: 15700,
+        likes: 2100,
+        comments: 245,
+        shares: 86,
+        hashtags: ["greenbeauty", "sustainablebeauty", "makeup"]
+      },
+      {
+        title: "Book review: Lessons in Chemistry \u{1F4DA} #booktok #currentlyreading",
+        thumbnailUrl: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/5",
+        views: 12300,
+        likes: 1800,
+        comments: 142,
+        shares: 53,
+        hashtags: ["booktok", "currentlyreading", "bookreview"]
+      },
+      {
+        title: "Is this tech accessory worth the hype? \u{1F914} #techreview",
+        thumbnailUrl: "https://images.unsplash.com/photo-1617997455403-41f333d44d57?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/6",
+        views: 10500,
+        likes: 1400,
+        comments: 98,
+        shares: 25,
+        hashtags: ["techreview", "gadgets", "newtech"]
+      }
+    ];
+    const middleVideos = [
+      {
+        title: "3 workout moves that transformed my arms \u{1F4AA} #fittok",
+        thumbnailUrl: "https://images.unsplash.com/photo-1571019613576-2b22c76fd955?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/7",
+        views: 45e4,
+        likes: 95e3,
+        comments: 5600,
+        shares: 18200,
+        hashtags: ["fittok", "workoutroutine", "armday"]
+      },
+      {
+        title: "30-minute meal prep that saved my week \u{1F957} #mealprep",
+        thumbnailUrl: "https://images.unsplash.com/photo-1631301883167-c6e9729509b0?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/8",
+        views: 32e4,
+        likes: 68e3,
+        comments: 3400,
+        shares: 12800,
+        hashtags: ["mealprep", "healthyeating", "quickrecipes"]
+      },
+      {
+        title: "Beach day vibes in Bali \u{1F3DD}\uFE0F #traveltok #balilife",
+        thumbnailUrl: "https://images.unsplash.com/photo-1573843981267-be1999ff37cd?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/9",
+        views: 528e3,
+        likes: 112e3,
+        comments: 6300,
+        shares: 21400,
+        hashtags: ["traveltok", "balilife", "beachvibes"]
+      },
+      {
+        title: "This skincare routine cleared my skin in 2 weeks \u2728 #skincare",
+        thumbnailUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/10",
+        views: 612e3,
+        likes: 143e3,
+        comments: 8900,
+        shares: 35600,
+        hashtags: ["skincare", "glowup", "skintok"]
+      }
+    ];
+    const videoInserts = [];
+    [...topVideos, ...middleVideos, ...bottomVideos].forEach((video) => {
+      videoInserts.push({
+        accountId,
+        ...video
+      });
+    });
+    if (videoInserts.length > 0) {
+      await db.insert(videos).values(videoInserts);
+    }
+  }
+};
+var storage = new DatabaseStorage();
+
+// server/routes.ts
+import { z as z2 } from "zod";
+async function registerRoutes(app2) {
+  app2.post("/api/auth/register", async (req, res) => {
+    try {
+      const validatedData = registerSchema.parse(req.body);
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+      const user = await storage.createUser(validatedData);
+      const { password, ...userWithoutPassword } = user;
+      req.session.userId = user.id;
+      return res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors
+        });
+      }
+      return res.status(500).json({ message: "Registration failed" });
+    }
+  });
+  app2.post("/api/auth/login", async (req, res) => {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      const user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      if (user.password !== validatedData.password) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      req.session.userId = user.id;
+      const { password, ...userWithoutPassword } = user;
+      return res.status(200).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors
+        });
+      }
+      return res.status(500).json({ message: "Login failed" });
+    }
+  });
+  app2.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Failed to logout" });
+      }
+      return res.status(200).json({ message: "Logged out successfully" });
+    });
+  });
+  app2.get("/api/auth/me", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const user = await storage.getUser(userId);
+    if (!user) {
+      req.session.destroy((err) => {
+        console.error("Session destroy error:", err);
+      });
+      return res.status(401).json({ message: "User not found" });
+    }
+    const { password, ...userWithoutPassword } = user;
+    return res.status(200).json(userWithoutPassword);
+  });
+  app2.post("/api/tiktok/accounts", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const { profileUrl } = tiktokProfileSchema.parse(req.body);
+      const match = profileUrl.match(/@([a-zA-Z0-9_.]+)/);
+      if (!match) {
+        return res.status(400).json({ message: "Invalid TikTok profile URL format" });
+      }
+      const username = match[1];
+      try {
+        console.log(`Verifying TikTok profile for username: ${username}`);
+        await tiktokApiService.getUserProfile(username);
+        const account = await storage.createTikTokAccount({
+          userId,
+          username,
+          profileUrl
+        });
+        return res.status(201).json(account);
+      } catch (apiError) {
+        console.error("TikTok API error:", apiError);
+        console.warn(`Couldn't verify TikTok profile via API for ${username}, proceeding anyway`);
+        const account = await storage.createTikTokAccount({
+          userId,
+          username,
+          profileUrl
+        });
+        return res.status(201).json(account);
+      }
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: error.errors
+        });
+      }
+      console.error("Error adding TikTok account:", error);
+      return res.status(500).json({ message: "Failed to add TikTok account" });
+    }
+  });
+  app2.get("/api/tiktok/accounts", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const accounts = await storage.getTikTokAccountsByUserId(userId);
+    return res.status(200).json(accounts);
+  });
+  app2.get("/api/tiktok/accounts/:accountId/videos/top", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const accountId = parseInt(req.params.accountId);
+    const limit = parseInt(req.query.limit?.toString() || "3");
+    const videos2 = await storage.getTopVideosByAccountId(accountId, limit);
+    return res.status(200).json(videos2);
+  });
+  app2.get("/api/tiktok/accounts/:accountId/videos/bottom", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const accountId = parseInt(req.params.accountId);
+    const limit = parseInt(req.query.limit?.toString() || "3");
+    const videos2 = await storage.getBottomVideosByAccountId(accountId, limit);
+    return res.status(200).json(videos2);
+  });
+  app2.get("/api/tiktok/accounts/:accountId/videos", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const accountId = parseInt(req.params.accountId);
+    const videos2 = await storage.getVideosByAccountId(accountId);
+    return res.status(200).json(videos2);
+  });
+  app2.post("/api/tiktok/accounts/:accountId/refresh", async (req, res) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const accounts = await storage.getTikTokAccountsByUserId(userId);
+      const account = accounts.find((acc) => acc.id === accountId);
+      if (!account) {
+        return res.status(404).json({ message: "TikTok account not found" });
+      }
+      try {
+        console.log(`Refreshing videos for account: ${account.username} (ID: ${accountId})`);
+        const videos2 = await tiktokApiService.getUserVideos(account.username);
+        if (!videos2 || videos2.length === 0) {
+          return res.status(404).json({ message: "No videos found for this account" });
+        }
+        const videoInserts = videos2.map(
+          (video) => tiktokApiService.convertToAppVideo(video, accountId)
+        );
+        await storage.refreshAccountVideos(accountId, videoInserts);
+        return res.status(200).json({
+          message: "Account videos refreshed successfully",
+          count: videos2.length
+        });
+      } catch (error) {
+        const apiError = error;
+        console.error("TikTok API error during refresh:", apiError);
+        return res.status(500).json({
+          message: "Failed to refresh videos from TikTok API",
+          error: apiError.message
+        });
+      }
+    } catch (error) {
+      console.error("Error refreshing account videos:", error);
+      return res.status(500).json({ message: "Failed to refresh account videos" });
+    }
+  });
+  const httpServer = createServer(app2);
+  return httpServer;
+}
+
+// server/vite.ts
+import express from "express";
+import fs from "fs";
+import path2 from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
+import path from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+var vite_config_default = defineConfig({
+  plugins: [
+    react(),
+    runtimeErrorOverlay(),
+    themePlugin(),
+    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
+      await import("@replit/vite-plugin-cartographer").then(
+        (m) => m.cartographer()
+      )
+    ] : []
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  root: path.resolve(import.meta.dirname, "client"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true
+  }
+});
+
+// server/vite.ts
+import { nanoid } from "nanoid";
+var viteLogger = createLogger();
+function log(message, source = "express") {
+  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+async function setupVite(app2, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      }
+    },
+    server: serverOptions,
+    appType: "custom"
+  });
+  app2.use(vite.middlewares);
+  app2.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path2.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html"
+      );
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app2) {
+  const distPath = path2.resolve(import.meta.dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app2.use(express.static(distPath));
+  app2.use("*", (_req, res) => {
+    res.sendFile(path2.resolve(distPath, "index.html"));
+  });
+}
+
+// server/index.ts
+var app = express2();
+app.use(express2.json());
+app.use(express2.urlencoded({ extended: false }));
+app.use(session({
+  secret: "tiktok-analytics-secret-key",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 24 * 60 * 60 * 1e3
+    // 24 hours
+  }
+}));
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path3 = req.path;
+  let capturedJsonResponse = void 0;
+  const originalResJson = res.json;
+  res.json = function(bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path3.startsWith("/api")) {
+      let logLine = `${req.method} ${path3} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "\u2026";
+      }
+      log(logLine);
+    }
+  });
+  next();
+});
+(async () => {
+  const server = await registerRoutes(app);
+  app.use((err, _req, res, _next) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    throw err;
+  });
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+  const port = 5e3;
+  server.listen({
+    port,
+    host: "0.0.0.0",
+    reusePort: true
+  }, () => {
+    log(`serving on port ${port}`);
+  });
+})();
+export {
+  app
+};
