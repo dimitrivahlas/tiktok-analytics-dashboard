@@ -3,6 +3,8 @@ import {
   tiktokAccounts, type TikTokAccount, type InsertTikTokAccount,
   videos, type Video, type InsertVideo 
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
@@ -22,105 +24,78 @@ export interface IStorage {
   createVideo(video: InsertVideo): Promise<Video>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private tiktokAccounts: Map<number, TikTokAccount>;
-  private videos: Map<number, Video>;
-  
-  private userIdCounter: number;
-  private accountIdCounter: number;
-  private videoIdCounter: number;
-
-  constructor() {
-    this.users = new Map();
-    this.tiktokAccounts = new Map();
-    this.videos = new Map();
-    
-    this.userIdCounter = 1;
-    this.accountIdCounter = 1;
-    this.videoIdCounter = 1;
-    
-    // Add a demo user
-    this.createUser({
-      username: "demouser",
-      email: "demo@example.com",
-      password: "password123"
-    });
-  }
-
+export class DatabaseStorage implements IStorage {
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email,
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   // TikTok Account methods
   async getTikTokAccountsByUserId(userId: number): Promise<TikTokAccount[]> {
-    return Array.from(this.tiktokAccounts.values()).filter(
-      (account) => account.userId === userId,
-    );
+    return await db.select()
+      .from(tiktokAccounts)
+      .where(eq(tiktokAccounts.userId, userId));
   }
 
   async createTikTokAccount(insertAccount: InsertTikTokAccount): Promise<TikTokAccount> {
-    const id = this.accountIdCounter++;
-    const account: TikTokAccount = { ...insertAccount, id };
-    this.tiktokAccounts.set(id, account);
+    const [account] = await db.insert(tiktokAccounts)
+      .values(insertAccount)
+      .returning();
     
     // Create mock videos for this account
-    this.createMockVideos(id);
+    await this.createMockVideos(account.id);
     
     return account;
   }
 
   // Video methods
   async getVideosByAccountId(accountId: number): Promise<Video[]> {
-    return Array.from(this.videos.values()).filter(
-      (video) => video.accountId === accountId,
-    );
+    return await db.select()
+      .from(videos)
+      .where(eq(videos.accountId, accountId));
   }
 
   async getTopVideosByAccountId(accountId: number, limit: number): Promise<Video[]> {
-    const accountVideos = await this.getVideosByAccountId(accountId);
-    return accountVideos
-      .sort((a, b) => b.views - a.views)
-      .slice(0, limit);
+    return await db.select()
+      .from(videos)
+      .where(eq(videos.accountId, accountId))
+      .orderBy(desc(videos.views))
+      .limit(limit);
   }
 
   async getBottomVideosByAccountId(accountId: number, limit: number): Promise<Video[]> {
-    const accountVideos = await this.getVideosByAccountId(accountId);
-    return accountVideos
-      .sort((a, b) => a.views - b.views)
-      .slice(0, limit);
+    return await db.select()
+      .from(videos)
+      .where(eq(videos.accountId, accountId))
+      .orderBy(asc(videos.views))
+      .limit(limit);
   }
 
   async createVideo(insertVideo: InsertVideo): Promise<Video> {
-    const id = this.videoIdCounter++;
-    const createdAt = new Date();
-    const video: Video = { ...insertVideo, id, createdAt };
-    this.videos.set(id, video);
+    const [video] = await db.insert(videos)
+      .values(insertVideo)
+      .returning();
     return video;
   }
 
   // Helper method to create mock videos for a new account
-  private createMockVideos(accountId: number): void {
+  private async createMockVideos(accountId: number): Promise<void> {
     // Top performing videos
     const topVideos = [
       {
@@ -214,13 +189,19 @@ export class MemStorage implements IStorage {
     ];
 
     // Create all the mock videos
+    const videoInserts = [];
     [...topVideos, ...middleVideos, ...bottomVideos].forEach(video => {
-      this.createVideo({
+      videoInserts.push({
         accountId,
         ...video
       });
     });
+
+    if (videoInserts.length > 0) {
+      await db.insert(videos).values(videoInserts);
+    }
   }
 }
 
-export const storage = new MemStorage();
+// Switch from memory storage to database storage
+export const storage = new DatabaseStorage();

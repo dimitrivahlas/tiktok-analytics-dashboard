@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -29,6 +30,26 @@ export const videos = pgTable("videos", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   hashtags: text("hashtags").array(),
 });
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  tiktokAccounts: many(tiktokAccounts),
+}));
+
+export const tiktokAccountsRelations = relations(tiktokAccounts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tiktokAccounts.userId],
+    references: [users.id],
+  }),
+  videos: many(videos),
+}));
+
+export const videosRelations = relations(videos, ({ one }) => ({
+  account: one(tiktokAccounts, {
+    fields: [videos.accountId],
+    references: [tiktokAccounts.id],
+  }),
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
