@@ -1,36 +1,36 @@
-// Simple standalone API route for Vercel
-import express from 'express';
-import { Pool } from '@neondatabase/serverless';
+// Vercel API route - main index handler
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
-import { eq } from 'drizzle-orm';
+import ws from 'ws';
 
-// Import necessary schemas
-import * as schema from '../shared/schema';
+// Configure neon to use WebSockets
+neonConfig.webSocketConstructor = ws;
 
-// Create a simple Express app for API endpoints
-const app = express();
-app.use(express.json());
+export default async function handler(req, res) {
+  // CORS headers for API requests
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
 
-// Set up database connection
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle({ client: pool, schema });
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
 
-// API Routes
-app.get('/api/auth/me', async (req, res) => {
-  res.status(401).json({ message: 'Not authenticated' });
-});
-
-app.get('/api/hello', (req, res) => {
-  res.status(200).json({ 
-    message: 'TikTok Analytics API is running!', 
-    timestamp: new Date().toISOString() 
+  // Return basic API info
+  return res.status(200).json({
+    message: 'TikTok Analytics API - Root Endpoint',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    note: 'This is the root API endpoint. Please use specific endpoints like /api/hello for actual functionality.',
+    endpoints: [
+      '/api/hello - Health check and environment info',
+      '/api/auth/me - Authentication status (always returns 401 for now)'
+    ]
   });
-});
-
-// Handle all other API routes
-app.all('/api/*', (req, res) => {
-  res.status(404).json({ message: 'API endpoint not found' });
-});
-
-// Export the Express API
-export default app;
+}
