@@ -1,0 +1,121 @@
+Last login: Tue Apr  8 15:28:03 on console
+dimitrivahlas@Dimitris-MacBook-Air-6 ~ % cd desktop
+dimitrivahlas@Dimitris-MacBook-Air-6 desktop % cd tiktok-analytics-dashboard
+dimitrivahlas@Dimitris-MacBook-Air-6 tiktok-analytics-dashboard % git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/YOUR_USERNAME/tiktok-analytics-dashboard.git
+git push -u origin main
+Initialized empty Git repository in /Users/dimitrivahlas/Desktop/tiktok-analytics-dashboard/.git/
+[main (root-commit) 2aeb554] Initial commit
+ 85 files changed, 16723 insertions(+)
+ create mode 100644 README.md
+ create mode 100644 client/index.html
+ create mode 100644 client/src/App.tsx
+ create mode 100644 client/src/components/auth/auth-modal.tsx
+ create mode 100644 client/src/components/dashboard/account-overview.tsx
+ create mode 100644 client/src/components/dashboard/tiktok-form.tsx
+ create mode 100644 client/src/components/dashboard/video-card.tsx
+ create mode 100644 client/src/components/dashboard/video-grid.tsx
+ create mode 100644 client/src/components/layout/footer.tsx
+ create mode 100644 client/src/components/layout/navbar.tsx
+ create mode 100644 client/src/components/ui/accordion.tsx
+ create mode 100644 client/src/components/ui/alert-dialog.tsx
+ create mode 100644 client/src/components/ui/alert.tsx
+ create mode 100644 client/src/components/ui/aspect-ratio.tsx
+ create mode 100644 client/src/components/ui/avatar.tsx
+ create mode 100644 client/src/components/ui/badge.tsx
+ create mode 100644 client/src/components/ui/breadcrumb.tsx
+ create mode 100644 client/src/components/ui/button.tsx
+ create mode 100644 client/src/components/ui/calendar.tsx
+ create mode 100644 client/src/components/ui/card.tsx
+ create mode 100644 client/src/components/ui/carousel.tsx
+ create mode 100644 client/src/components/ui/chart.tsx
+ create mode 100644 client/src/components/ui/checkbox.tsx
+ create mode 100644 client/src/components/ui/collapsible.tsx
+ create mode 100644 client/src/components/ui/command.tsx
+ create mode 100644 client/src/components/ui/context-menu.tsx
+ create mode 100644 client/src/components/ui/dialog.tsx
+ create mode 100644 client/src/components/ui/drawer.tsx
+ create mode 100644 client/src/components/ui/dropdown-menu.tsx
+ create mode 100644 client/src/components/ui/form.tsx
+ create mode 100644 client/src/components/ui/hover-card.tsx
+ create mode 100644 client/src/components/ui/input-otp.tsx
+ create mode 100644 client/src/components/ui/input.tsx
+ create mode 100644 client/src/components/ui/label.tsx
+ create mode 100644 client/src/components/ui/menubar.tsx
+ create mode 100644 client/src/components/ui/navigation-menu.tsx
+ create mode 100644 client/src/components/ui/pagination.tsx
+ create mode 100644 client/src/components/ui/popover.tsx
+ create mode 100644 client/src/components/ui/progress.tsx
+ create mode 100644 client/src/components/ui/radio-group.tsx
+ create mode 100644 client/src/components/ui/resizable.tsx
+ create mode 100644 client/src/components/ui/scroll-area.tsx
+ create mode 100644 client/src/components/ui/select.tsx
+ create mode 100644 client/src/components/ui/separator.tsx
+ create mode 100644 client/src/components/ui/sheet.tsx
+ create mode 100644 client/src/components/ui/sidebar.tsx
+ create mode 100644 client/src/components/ui/skeleton.tsx
+ create mode 100644 client/src/components/ui/slider.tsx
+ create mode 100644 client/src/components/ui/switch.tsx
+ create mode 100644 client/src/components/ui/table.tsx
+ create mode 100644 client/src/components/ui/tabs.tsx
+ create mode 100644 client/src/components/ui/textarea.tsx
+ create mode 100644 client/src/components/ui/toast.tsx
+ create mode 100644 client/src/components/ui/toaster.tsx
+ create mode 100644 client/src/components/ui/toggle-group.tsx
+ create mode 100644 client/src/components/ui/toggle.tsx
+ create mode 100644 client/src/components/ui/tooltip.tsx
+ create mode 100644 client/src/components/welcome-screen.tsx
+ create mode 100644 client/src/contexts/auth-context.tsx
+ create mode 100644 client/src/hooks/use-auth-modal.tsx
+ create mode 100644 client/src/hooks/use-mobile.tsx
+ create mode 100644 client/src/hooks/use-toast.ts
+ create mode 100644 client/src/index.css
+ create mode 100644 client/src/lib/queryClient.ts
+ create mode 100644 client/src/lib/utils.ts
+ create mode 100644 client/src/main.tsx
+ create mode 100644 client/src/pages/dashboard.tsx
+ create mode 100644 client/src/pages/home.tsx
+ create mode 100644 client/src/pages/not-found.tsx
+ create mode 100644 client/src/types/index.ts
+ create mode 100644 drizzle.config.ts
+ create mode 100644 package-lock.json
+ create mode 100644 package.json
+ create mode 100644 postcss.config.js
+ create mode 100644 server/db.ts
+ create mode 100644 server/index.ts
+ create mode 100644 server/routes.ts
+ create mode 100644 server/storage.ts
+ create mode 100644 server/tiktok-api.ts
+ create mode 100644 server/vite.ts
+ create mode 100644 shared/schema.ts
+ create mode 100644 tailwind.config.ts
+ create mode 100644 theme.json
+ create mode 100644 tsconfig.json
+ create mode 100644 vite.config.ts
+remote: Repository not found.
+fatal: repository 'https://github.com/YOUR_USERNAME/tiktok-analytics-dashboard.git/' not found
+dimitrivahlas@Dimitris-MacBook-Air-6 tiktok-analytics-dashboard % git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/dimitrivahlas/tiktok-analytics-dashboard.git
+git push -u origin main
+Reinitialized existing Git repository in /Users/dimitrivahlas/Desktop/tiktok-analytics-dashboard/.git/
+On branch main
+nothing to commit, working tree clean
+error: remote origin already exists.
+remote: Repository not found.
+fatal: repository 'https://github.com/YOUR_USERNAME/tiktok-analytics-dashboard.git/' not found
+dimitrivahlas@Dimitris-MacBook-Air-6 tiktok-analytics-dashboard % git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/YOUR_USERNAME/tiktok-analytics-dashboard.git
+git push -u origin main
+Reinitialized existing Git repository in /Users/dimitrivahlas/Desktop/tiktok-analytics-dashboard/.git/
+On branch main
+nothing to commit, working tree clean
+error: remote origin already exists.
+remote: Repository not found.
+fatal: repository 'https://github.com/YOUR_USERNAME/tiktok-analytics-dashboard.git/' not found
+dimitrivahlas@Dimitris-MacBook-Air-6 tiktok-analytics-dashboard % 
