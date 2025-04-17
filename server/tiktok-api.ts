@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { InsertVideo } from '@shared/schema';
 
-// Types for TikTok API responses
+// Types for TikTok API responses from tiktok-video-data API
 interface TikTokVideoStats {
   playCount: number;
   diggCount: number;
@@ -11,24 +11,55 @@ interface TikTokVideoStats {
 
 interface TikTokVideoData {
   id: string;
-  description: string;
+  desc: string; // description
   cover: string;
-  video: {
-    playAddr: string;
-  };
-  stats: TikTokVideoStats;
+  originCover: string;
+  dynamicCover: string;
+  url: string;
   createTime: number;
+  authorMeta: {
+    id: string;
+    name: string;
+    nickName: string;
+  };
+  musicMeta: {
+    musicId: string;
+    musicName: string;
+    musicAuthor: string;
+    musicOriginal: boolean;
+  };
+  diggCount: number;
+  shareCount: number;
+  playCount: number;
+  commentCount: number;
+  downloaded: boolean;
+  hashtags: {
+    id: string;
+    name: string;
+    title: string;
+  }[];
 }
 
 interface TikTokUserProfile {
-  id: string;
-  uniqueId: string;
-  nickname: string;
-  avatarThumb: string;
-  signature: string;
+  user: {
+    id: string;
+    uniqueId: string;
+    nickname: string;
+    avatarThumb: string;
+    avatarMedium: string;
+    signature: string;
+    verified: boolean;
+    stats: {
+      followingCount: number;
+      followerCount: number;
+      heartCount: number;
+      videoCount: number;
+    };
+  };
   stats: {
-    followingCount: number;
     followerCount: number;
+    followingCount: number;
+    heart: number;
     heartCount: number;
     videoCount: number;
   };
@@ -51,58 +82,83 @@ export class TikTokApiService {
   // Fetch user profile information by username
   async getUserProfile(username: string): Promise<TikTokUserProfile> {
     try {
-      const response = await axios.get(`${this.baseUrl}/user/profile`, {
-        params: { username },
+      console.log(`Fetching TikTok profile for username: ${username}`);
+      
+      const response = await axios.get(`${this.baseUrl}/user/info`, {
+        params: { unique_id: username },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
           'X-RapidAPI-Host': 'tiktok-video-data.p.rapidapi.com'
         }
       });
 
+      if (!response.data || response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      console.log(`Successfully retrieved profile for ${username}`);
       return response.data;
-    } catch (error) {
-      console.error('Error fetching TikTok user profile:', error);
-      throw new Error('Failed to fetch TikTok user profile');
+    } catch (error: any) {
+      console.error('Error fetching TikTok user profile:', error?.response?.data || error.message || error);
+      throw new Error(`Failed to fetch TikTok user profile: ${error?.response?.data?.message || error.message || 'Unknown error'}`);
     }
   }
 
   // Fetch user videos by username
   async getUserVideos(username: string, limit = 30): Promise<TikTokVideoData[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/user/videos`, {
-        params: { username, limit },
+      console.log(`Fetching TikTok videos for username: ${username}, limit: ${limit}`);
+      
+      const response = await axios.get(`${this.baseUrl}/feed/user`, {
+        params: { 
+          unique_id: username, 
+          count: limit
+        },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
           'X-RapidAPI-Host': 'tiktok-video-data.p.rapidapi.com'
         }
       });
 
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching TikTok user videos:', error);
-      throw new Error('Failed to fetch TikTok user videos');
+      if (!response.data || response.status !== 200) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      const videos = response.data;
+      console.log(`Successfully retrieved ${videos.length} videos for ${username}`);
+      return videos;
+    } catch (error: any) {
+      console.error('Error fetching TikTok user videos:', error?.response?.data || error.message || error);
+      throw new Error(`Failed to fetch TikTok user videos: ${error?.response?.data?.message || error.message || 'Unknown error'}`);
     }
   }
 
   // Convert TikTok API video format to our application's video format
   convertToAppVideo(tiktokVideo: TikTokVideoData, accountId: number): InsertVideo {
-    // Extract hashtags from description
-    const hashtagRegex = /#(\w+)/g;
-    const hashtags: string[] = [];
-    let match;
-    while ((match = hashtagRegex.exec(tiktokVideo.description)) !== null) {
-      hashtags.push(match[1]);
+    // Get hashtags from the API response if available or extract from description
+    let hashtags: string[] = [];
+    
+    if (tiktokVideo.hashtags && tiktokVideo.hashtags.length > 0) {
+      // Use API-provided hashtags
+      hashtags = tiktokVideo.hashtags.map(tag => tag.name);
+    } else {
+      // Extract hashtags from description as fallback
+      const hashtagRegex = /#(\w+)/g;
+      let match;
+      while ((match = hashtagRegex.exec(tiktokVideo.desc)) !== null) {
+        hashtags.push(match[1]);
+      }
     }
 
     return {
       accountId,
-      title: tiktokVideo.description || 'No description',
-      thumbnailUrl: tiktokVideo.cover,
-      videoUrl: tiktokVideo.video.playAddr,
-      views: tiktokVideo.stats.playCount || 0,
-      likes: tiktokVideo.stats.diggCount || 0,
-      comments: tiktokVideo.stats.commentCount || 0,
-      shares: tiktokVideo.stats.shareCount || 0,
+      title: tiktokVideo.desc || 'No description',
+      thumbnailUrl: tiktokVideo.cover || tiktokVideo.originCover || tiktokVideo.dynamicCover,
+      videoUrl: tiktokVideo.url,
+      views: tiktokVideo.playCount || 0,
+      likes: tiktokVideo.diggCount || 0,
+      comments: tiktokVideo.commentCount || 0,
+      shares: tiktokVideo.shareCount || 0,
       hashtags
     };
   }
