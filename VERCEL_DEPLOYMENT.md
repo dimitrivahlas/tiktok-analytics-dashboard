@@ -14,9 +14,15 @@ This guide will help you deploy your TikTok Analytics Dashboard to Vercel.
 
 If you don't have a database yet:
 - Create a free PostgreSQL database on [Neon](https://neon.tech) or [Supabase](https://supabase.com)
-- Get your database connection string
+- Get your database connection string (should start with `postgres://` or `postgresql://`)
 
-### 2. Deploy to Vercel
+### 2. Push the Latest Code to GitHub
+
+Make sure your GitHub repository has all the latest changes, including:
+- The `vercel.json` configuration file
+- The `api` directory with serverless functions
+
+### 3. Deploy to Vercel
 
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Click "Add New..." → "Project"
@@ -27,17 +33,17 @@ If you don't have a database yet:
    - Build Command: Vercel will automatically use the one in package.json
    - Output Directory: `dist`
 
-### 3. Configure Environment Variables
+### 4. Configure Environment Variables
 
 In the Vercel deployment settings, add these environment variables:
 - `DATABASE_URL`: Your PostgreSQL connection string
 - `TIKTOK_API_KEY`: Your TikTok API key from RapidAPI
 
-### 4. Deploy!
+### 5. Deploy!
 
 Click "Deploy" and wait for the build to complete.
 
-### 5. Set Up Database Schema
+### 6. Set Up Database Schema
 
 After the first deployment, you'll need to set up your database schema:
 
