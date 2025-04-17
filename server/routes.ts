@@ -253,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Convert TikTok videos to our format
-        const videoInserts = videos.map(video => 
+        const videoInserts = videos.map((video: any) => 
           tiktokApiService.convertToAppVideo(video, accountId)
         );
         

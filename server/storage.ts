@@ -179,97 +179,117 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  // Helper method to create mock videos for a new account
+  // Helper method to create high-quality mock videos for a new account
   private async createMockVideos(accountId: number): Promise<void> {
     // Top performing videos
     const topVideos = [
       {
-        title: "Morning routine: 5 steps to kickstart productivity",
-        thumbnailUrl: "https://images.unsplash.com/photo-1640271443625-3276ed8f62b5",
+        title: "POV: When the sunset hits just right 🌅 #sunsetvibes #fyp",
+        thumbnailUrl: "https://images.unsplash.com/photo-1616036740257-9449ea1f6605?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/1",
-        views: 1200000,
-        likes: 253000,
-        comments: 14200,
-        shares: 76300,
-        hashtags: ["morningroutine", "productivity"],
+        views: 3500000,
+        likes: 853000,
+        comments: 24200,
+        shares: 176300,
+        hashtags: ["sunsetvibes", "fyp", "naturelover"],
       },
       {
-        title: "3 quick smoothie recipes for busy mornings",
-        thumbnailUrl: "https://images.unsplash.com/photo-1606787366850-de6330128bfc",
+        title: "This recipe changed my life 🍜 #foodtok #cookinghacks",
+        thumbnailUrl: "https://images.unsplash.com/photo-1593829111182-8a2a5b780302?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/2",
-        views: 890000,
-        likes: 189000,
-        comments: 8700,
-        shares: 42100,
-        hashtags: ["smoothies", "healthyrecipes"],
+        views: 2890000,
+        likes: 689000,
+        comments: 18700,
+        shares: 142100,
+        hashtags: ["foodtok", "cookinghacks", "easyrecipe"],
       },
       {
-        title: "How I saved $10K in 6 months (finance tips)",
-        thumbnailUrl: "https://images.unsplash.com/photo-1588854337115-1c67d9247e4d",
+        title: "NYC apartment tour 🗽 How I transformed 500sqft #homedecor",
+        thumbnailUrl: "https://images.unsplash.com/photo-1598928636135-d146006ff4be?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/3",
-        views: 750000,
-        likes: 165000,
-        comments: 11200,
-        shares: 31500,
-        hashtags: ["finance", "moneytips"],
+        views: 1750000,
+        likes: 365000,
+        comments: 21200,
+        shares: 81500,
+        hashtags: ["homedecor", "apartmenttour", "transformation"],
       }
     ];
 
     // Bottom performing videos
     const bottomVideos = [
       {
-        title: "My thoughts on the new sustainable fashion trend",
-        thumbnailUrl: "https://images.unsplash.com/photo-1554774853-aae0a22c8aa4",
+        title: "My honest opinion on sustainable makeup brands #greenbeauty",
+        thumbnailUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/4",
         views: 15700,
         likes: 2100,
         comments: 245,
         shares: 86,
-        hashtags: ["fashion", "sustainability"],
+        hashtags: ["greenbeauty", "sustainablebeauty", "makeup"],
       },
       {
-        title: "Book review: The Silent Patient",
-        thumbnailUrl: "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1",
+        title: "Book review: Lessons in Chemistry 📚 #booktok #currentlyreading",
+        thumbnailUrl: "https://images.unsplash.com/photo-1589829085413-56de8ae18c73?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/5",
         views: 12300,
         likes: 1800,
         comments: 142,
         shares: 53,
-        hashtags: ["bookreview", "reading"],
+        hashtags: ["booktok", "currentlyreading", "bookreview"],
       },
       {
-        title: "My thoughts on the latest tech gadgets",
-        thumbnailUrl: "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3",
+        title: "Is this tech accessory worth the hype? 🤔 #techreview",
+        thumbnailUrl: "https://images.unsplash.com/photo-1617997455403-41f333d44d57?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/6",
         views: 10500,
         likes: 1400,
         comments: 98,
         shares: 25,
-        hashtags: ["tech", "gadgets"],
+        hashtags: ["techreview", "gadgets", "newtech"],
       }
     ];
 
     // Additional videos for diversity in results
     const middleVideos = [
       {
-        title: "5 minute ab workout you can do anywhere",
-        thumbnailUrl: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
+        title: "3 workout moves that transformed my arms 💪 #fittok",
+        thumbnailUrl: "https://images.unsplash.com/photo-1571019613576-2b22c76fd955?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/7",
         views: 450000,
         likes: 95000,
         comments: 5600,
         shares: 18200,
-        hashtags: ["fitness", "workout"],
+        hashtags: ["fittok", "workoutroutine", "armday"],
       },
       {
-        title: "Easy dinner recipe: 15-minute pasta",
-        thumbnailUrl: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601",
+        title: "30-minute meal prep that saved my week 🥗 #mealprep",
+        thumbnailUrl: "https://images.unsplash.com/photo-1631301883167-c6e9729509b0?q=80&w=640&auto=format&fit=crop",
         videoUrl: "https://www.tiktok.com/@username/video/8",
         views: 320000,
         likes: 68000,
         comments: 3400,
         shares: 12800,
-        hashtags: ["recipe", "easymeals"],
+        hashtags: ["mealprep", "healthyeating", "quickrecipes"],
+      },
+      {
+        title: "Beach day vibes in Bali 🏝️ #traveltok #balilife",
+        thumbnailUrl: "https://images.unsplash.com/photo-1573843981267-be1999ff37cd?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/9",
+        views: 528000,
+        likes: 112000,
+        comments: 6300,
+        shares: 21400,
+        hashtags: ["traveltok", "balilife", "beachvibes"],
+      },
+      {
+        title: "This skincare routine cleared my skin in 2 weeks ✨ #skincare",
+        thumbnailUrl: "https://images.unsplash.com/photo-1556228720-195a672e8a03?q=80&w=640&auto=format&fit=crop",
+        videoUrl: "https://www.tiktok.com/@username/video/10",
+        views: 612000,
+        likes: 143000,
+        comments: 8900,
+        shares: 35600,
+        hashtags: ["skincare", "glowup", "skintok"],
       }
     ];
 
