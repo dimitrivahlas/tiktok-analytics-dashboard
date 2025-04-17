@@ -2,6 +2,7 @@ import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
+import { tiktokApiService } from "./tiktok-api";
 import { 
   loginSchema, 
   registerSchema, 
@@ -129,13 +130,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const username = match[1];
       
-      const account = await storage.createTikTokAccount({
-        userId,
-        username,
-        profileUrl
-      });
-      
-      return res.status(201).json(account);
+      try {
+        // Try to verify the TikTok user profile exists
+        console.log(`Verifying TikTok profile for username: ${username}`);
+        await tiktokApiService.getUserProfile(username);
+        
+        // Create the account in our database
+        const account = await storage.createTikTokAccount({
+          userId,
+          username,
+          profileUrl
+        });
+        
+        return res.status(201).json(account);
+      } catch (apiError) {
+        console.error('TikTok API error:', apiError);
+        
+        // If we couldn't verify with the API, still allow adding the account
+        // but log a warning (the storage class will handle fallback to mock data)
+        console.warn(`Couldn't verify TikTok profile via API for ${username}, proceeding anyway`);
+        
+        const account = await storage.createTikTokAccount({
+          userId,
+          username,
+          profileUrl
+        });
+        
+        return res.status(201).json(account);
+      }
       
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -144,6 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors: error.errors 
         });
       }
+      console.error('Error adding TikTok account:', error);
       return res.status(500).json({ message: "Failed to add TikTok account" });
     }
   });
@@ -199,6 +222,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const videos = await storage.getVideosByAccountId(accountId);
     return res.status(200).json(videos);
+  });
+  
+  // Refresh videos for an account from TikTok API
+  app.post("/api/tiktok/accounts/:accountId/refresh", async (req: Request, res: Response) => {
+    const userId = req.session?.userId;
+    
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      const accountId = parseInt(req.params.accountId);
+      
+      // Get the account to get the username
+      const accounts = await storage.getTikTokAccountsByUserId(userId);
+      const account = accounts.find(acc => acc.id === accountId);
+      
+      if (!account) {
+        return res.status(404).json({ message: "TikTok account not found" });
+      }
+      
+      // Re-fetch videos from TikTok API
+      try {
+        console.log(`Refreshing videos for account: ${account.username} (ID: ${accountId})`);
+        const videos = await tiktokApiService.getUserVideos(account.username);
+        
+        if (!videos || videos.length === 0) {
+          return res.status(404).json({ message: "No videos found for this account" });
+        }
+        
+        // Convert TikTok videos to our format
+        const videoInserts = videos.map(video => 
+          tiktokApiService.convertToAppVideo(video, accountId)
+        );
+        
+        // Use our transaction method to replace all videos
+        await storage.refreshAccountVideos(accountId, videoInserts);
+        
+        return res.status(200).json({ 
+          message: "Account videos refreshed successfully",
+          count: videos.length
+        });
+      } catch (error) {
+        const apiError = error as Error;
+        console.error('TikTok API error during refresh:', apiError);
+        return res.status(500).json({ 
+          message: "Failed to refresh videos from TikTok API",
+          error: apiError.message
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing account videos:', error);
+      return res.status(500).json({ message: "Failed to refresh account videos" });
+    }
   });
 
   const httpServer = createServer(app);

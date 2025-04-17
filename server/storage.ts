@@ -23,6 +23,8 @@ export interface IStorage {
   getTopVideosByAccountId(accountId: number, limit: number): Promise<Video[]>;
   getBottomVideosByAccountId(accountId: number, limit: number): Promise<Video[]>;
   createVideo(video: InsertVideo): Promise<Video>;
+  deleteVideosByAccountId(accountId: number): Promise<void>;
+  refreshAccountVideos(accountId: number, newVideos: InsertVideo[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -99,6 +101,25 @@ export class DatabaseStorage implements IStorage {
       .values(insertVideo)
       .returning();
     return video;
+  }
+  
+  async deleteVideosByAccountId(accountId: number): Promise<void> {
+    await db.delete(videos)
+      .where(eq(videos.accountId, accountId));
+  }
+  
+  async refreshAccountVideos(accountId: number, newVideos: InsertVideo[]): Promise<void> {
+    // Use a transaction to ensure atomicity (delete old videos and add new ones)
+    await db.transaction(async (tx) => {
+      // Delete all existing videos for this account
+      await tx.delete(videos)
+        .where(eq(videos.accountId, accountId));
+      
+      // Insert the new videos
+      if (newVideos.length > 0) {
+        await tx.insert(videos).values(newVideos);
+      }
+    });
   }
 
   // Helper method to fetch and save real TikTok videos

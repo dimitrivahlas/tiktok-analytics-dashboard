@@ -41,7 +41,7 @@ export class TikTokApiService {
 
   constructor() {
     this.apiKey = process.env.TIKTOK_API_KEY || '';
-    this.baseUrl = 'https://tiktok-api-wrapper.p.rapidapi.com';
+    this.baseUrl = 'https://tiktok-video-data.p.rapidapi.com';
 
     if (!this.apiKey) {
       console.warn('TIKTOK_API_KEY environment variable is not set');
@@ -51,10 +51,11 @@ export class TikTokApiService {
   // Fetch user profile information by username
   async getUserProfile(username: string): Promise<TikTokUserProfile> {
     try {
-      const response = await axios.get(`${this.baseUrl}/user/${username}`, {
+      const response = await axios.get(`${this.baseUrl}/user/profile`, {
+        params: { username },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
-          'X-RapidAPI-Host': 'tiktok-api-wrapper.p.rapidapi.com'
+          'X-RapidAPI-Host': 'tiktok-video-data.p.rapidapi.com'
         }
       });
 
@@ -68,11 +69,11 @@ export class TikTokApiService {
   // Fetch user videos by username
   async getUserVideos(username: string, limit = 30): Promise<TikTokVideoData[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/user/videos/${username}`, {
-        params: { count: limit },
+      const response = await axios.get(`${this.baseUrl}/user/videos`, {
+        params: { username, limit },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
-          'X-RapidAPI-Host': 'tiktok-api-wrapper.p.rapidapi.com'
+          'X-RapidAPI-Host': 'tiktok-video-data.p.rapidapi.com'
         }
       });
 
