@@ -1,5 +1,6 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import session from "express-session";
 import { storage } from "./storage";
 import { 
   loginSchema, 
@@ -7,6 +8,13 @@ import {
   tiktokProfileSchema 
 } from "@shared/schema";
 import { z } from "zod";
+
+// Extend Express Request type to include session
+declare module "express-session" {
+  interface SessionData {
+    userId?: number;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // User authentication routes
@@ -24,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Don't return the password in the response
       const { password, ...userWithoutPassword } = user;
       
-      req.session = { userId: user.id };
+      req.session.userId = user.id;
       return res.status(201).json(userWithoutPassword);
       
     } catch (error) {
@@ -53,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Set user id in session
-      req.session = { userId: user.id };
+      req.session.userId = user.id;
       
       // Don't return the password in the response
       const { password, ...userWithoutPassword } = user;
@@ -72,8 +80,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {
-    req.session = null;
-    return res.status(200).json({ message: "Logged out successfully" });
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Failed to logout" });
+      }
+      return res.status(200).json({ message: "Logged out successfully" });
+    });
   });
 
   app.get("/api/auth/me", async (req: Request, res: Response) => {
@@ -85,7 +97,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const user = await storage.getUser(userId);
     if (!user) {
-      req.session = null;
+      req.session.destroy((err) => {
+        console.error('Session destroy error:', err);
+      });
       return res.status(401).json({ message: "User not found" });
     }
     
