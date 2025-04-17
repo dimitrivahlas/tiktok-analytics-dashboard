@@ -128,17 +128,43 @@ export class DatabaseStorage implements IStorage {
       console.log(`Fetching TikTok videos for account: ${username}`);
       
       // Get videos from TikTok API
-      const tiktokVideos = await tiktokApiService.getUserVideos(username);
+      const tiktokVideosResponse: any = await tiktokApiService.getUserVideos(username);
+      console.log(`Raw API response structure:`, Object.keys(tiktokVideosResponse || {}));
+      
+      // Handle different API response formats
+      let tiktokVideos: any[] = [];
+      
+      if (Array.isArray(tiktokVideosResponse)) {
+        tiktokVideos = tiktokVideosResponse;
+      } else if (tiktokVideosResponse && typeof tiktokVideosResponse === 'object') {
+        const responseObj: any = tiktokVideosResponse;
+        // Check for common response patterns in different APIs
+        if (responseObj.data && Array.isArray(responseObj.data)) {
+          tiktokVideos = responseObj.data;
+        } else if (responseObj.videos && Array.isArray(responseObj.videos)) {
+          tiktokVideos = responseObj.videos;
+        } else if (responseObj.items && Array.isArray(responseObj.items)) {
+          tiktokVideos = responseObj.items;
+        } else if (responseObj.aweme_list && Array.isArray(responseObj.aweme_list)) {
+          // TokAPI specific response format
+          tiktokVideos = responseObj.aweme_list;
+        }
+      }
       
       if (!tiktokVideos || tiktokVideos.length === 0) {
         console.warn(`No videos found for TikTok account: ${username}`);
-        throw new Error('No videos found');
+        throw new Error('No videos found or invalid response format');
       }
       
       console.log(`Found ${tiktokVideos.length} videos for account: ${username}`);
       
+      // Sample the first video to see structure (for debugging)
+      if (tiktokVideos.length > 0) {
+        console.log(`Sample video structure:`, Object.keys(tiktokVideos[0]));
+      }
+      
       // Convert TikTok videos to our application format
-      const videoInserts: InsertVideo[] = tiktokVideos.map(video => 
+      const videoInserts: InsertVideo[] = tiktokVideos.map((video: any) => 
         tiktokApiService.convertToAppVideo(video, accountId)
       );
       

@@ -72,7 +72,7 @@ export class TikTokApiService {
 
   constructor() {
     this.apiKey = process.env.TIKTOK_API_KEY || '';
-    this.baseUrl = 'https://tiktok-api-scraper.p.rapidapi.com';
+    this.baseUrl = 'https://tokapi-mobile-version.p.rapidapi.com';
 
     if (!this.apiKey) {
       console.warn('TIKTOK_API_KEY environment variable is not set');
@@ -89,11 +89,11 @@ export class TikTokApiService {
       // Remove @ symbol if present
       const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
       
-      const response = await axios.get(`${this.baseUrl}/user`, {
+      const response = await axios.get(`${this.baseUrl}/v1/user`, {
         params: { username: cleanUsername },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
-          'X-RapidAPI-Host': 'tiktok-api-scraper.p.rapidapi.com'
+          'X-RapidAPI-Host': 'tokapi-mobile-version.p.rapidapi.com'
         }
       });
 
@@ -110,21 +110,22 @@ export class TikTokApiService {
   }
 
   // Fetch user videos by username
-  async getUserVideos(username: string, limit = 30): Promise<TikTokVideoData[]> {
+  async getUserVideos(username: string, limit = 30): Promise<any> {
     try {
       console.log(`Fetching TikTok videos for username: ${username}, limit: ${limit}`);
       
       // Remove @ symbol if present
       const cleanUsername = username.startsWith('@') ? username.substring(1) : username;
       
-      const response = await axios.get(`${this.baseUrl}/user/videos`, {
+      const response = await axios.get(`${this.baseUrl}/v1/user/posts`, {
         params: { 
           username: cleanUsername, 
-          count: limit
+          count: limit,
+          cursor: 0
         },
         headers: {
           'X-RapidAPI-Key': this.apiKey,
-          'X-RapidAPI-Host': 'tiktok-api-scraper.p.rapidapi.com'
+          'X-RapidAPI-Host': 'tokapi-mobile-version.p.rapidapi.com'
         }
       });
 
