@@ -5,6 +5,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc } from "drizzle-orm";
+import { tiktokApiService } from "./tiktok-api";
 
 export interface IStorage {
   // User methods
@@ -58,8 +59,14 @@ export class DatabaseStorage implements IStorage {
       .values(insertAccount)
       .returning();
     
-    // Create mock videos for this account
-    await this.createMockVideos(account.id);
+    // Fetch real TikTok videos for this account
+    try {
+      await this.fetchAndSaveTikTokVideos(account.id, insertAccount.username);
+    } catch (error) {
+      console.error('Failed to fetch TikTok videos:', error);
+      // Fallback to mock videos if API fails
+      await this.createMockVideos(account.id);
+    }
     
     return account;
   }
@@ -92,6 +99,37 @@ export class DatabaseStorage implements IStorage {
       .values(insertVideo)
       .returning();
     return video;
+  }
+
+  // Helper method to fetch and save real TikTok videos
+  private async fetchAndSaveTikTokVideos(accountId: number, username: string): Promise<void> {
+    try {
+      console.log(`Fetching TikTok videos for account: ${username}`);
+      
+      // Get videos from TikTok API
+      const tiktokVideos = await tiktokApiService.getUserVideos(username);
+      
+      if (!tiktokVideos || tiktokVideos.length === 0) {
+        console.warn(`No videos found for TikTok account: ${username}`);
+        throw new Error('No videos found');
+      }
+      
+      console.log(`Found ${tiktokVideos.length} videos for account: ${username}`);
+      
+      // Convert TikTok videos to our application format
+      const videoInserts: InsertVideo[] = tiktokVideos.map(video => 
+        tiktokApiService.convertToAppVideo(video, accountId)
+      );
+      
+      // Save videos to database
+      if (videoInserts.length > 0) {
+        await db.insert(videos).values(videoInserts);
+        console.log(`Saved ${videoInserts.length} videos to database for account ID: ${accountId}`);
+      }
+    } catch (error) {
+      console.error('Error fetching TikTok videos:', error);
+      throw error;
+    }
   }
 
   // Helper method to create mock videos for a new account
@@ -189,7 +227,7 @@ export class DatabaseStorage implements IStorage {
     ];
 
     // Create all the mock videos
-    const videoInserts = [];
+    const videoInserts: InsertVideo[] = [];
     [...topVideos, ...middleVideos, ...bottomVideos].forEach(video => {
       videoInserts.push({
         accountId,
