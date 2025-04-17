@@ -1,86 +1,72 @@
 # TikTok Analytics Dashboard
 
-A modern web application that provides visual insights into TikTok video performance with a clean, minimal UI inspired by Notion and Figma.
+A modern, responsive analytics dashboard that allows users to track and visualize TikTok content performance. Built with React, TypeScript, and Express.
 
 ## Features
 
-- **User Authentication**: Secure login and registration system
-- **TikTok Account Management**: Add and track multiple TikTok accounts
-- **Performance Analytics**: Track views, likes, comments, and shares
-- **Top & Bottom Performers**: Easily identify your best and worst performing content
-- **Engagement Metrics**: Calculate and visualize engagement rates
-- **Responsive Design**: Works seamlessly on mobile, tablet, and desktop
+- User authentication with secure session management
+- Connect and track multiple TikTok accounts
+- View detailed performance analytics including views, likes, comments, and engagement rates
+- Analyze top and bottom performing videos
+- Responsive design for desktop and mobile
 
 ## Tech Stack
 
-- **Frontend**: React with TypeScript, Vite, TanStack Query
-- **UI Components**: Tailwind CSS, Shadcn UI
-- **Backend**: Express.js, PostgreSQL with Drizzle ORM
-- **Authentication**: Session-based with Express Session
-- **API Integration**: TikTok API (via RapidAPI)
+- **Frontend**: React, TypeScript, TanStack Query, Tailwind CSS, Shadcn UI
+- **Backend**: Express.js, PostgreSQL (via Drizzle ORM)
+- **Authentication**: Custom authentication with sessions
+- **Data Visualization**: Recharts
+- **API Integration**: TikTok data via RapidAPI
 
-## Setup
+## Getting Started
 
 ### Prerequisites
 
-- Node.js v16+
-- PostgreSQL (for production use)
+- Node.js (v18 or higher)
+- npm or yarn
+- PostgreSQL database
 
 ### Installation
 
 1. Clone the repository
-```bash
-git clone https://github.com/dimtrivahlas/tiktok-analytics-dashboard.git
-cd tiktok-analytics-dashboard
-```
+   ```
+   git clone https://github.com/dimitrivahlas/tiktok-analytics-dashboard.git
+   cd tiktok-analytics-dashboard
+   ```
 
 2. Install dependencies
-```bash
-npm install
-```
+   ```
+   npm install
+   ```
 
 3. Set up environment variables
-Create a `.env` file in the root directory with the following variables:
-```
-DATABASE_URL=postgres://user:password@localhost:5432/tiktok_analytics
-TIKTOK_API_KEY=your_rapidapi_key
-```
+   Create a `.env` file in the project root and add:
+   ```
+   DATABASE_URL=your_postgresql_connection_string
+   TIKTOK_API_KEY=your_tiktok_api_key_from_rapidapi
+   ```
 
-4. Run the database migrations
-```bash
-npm run db:push
-```
+4. Initialize the database
+   ```
+   npm run db:push
+   ```
 
 5. Start the development server
-```bash
-npm run dev
-```
+   ```
+   npm run dev
+   ```
 
-## Usage
+## Deployment
 
-1. Register a new account or login with the demo account:
-   - Username: demo
-   - Password: password123
-
-2. Add your TikTok account by entering your TikTok username
-
-3. View analytics for your videos including:
-   - Top performing videos
-   - Lowest performing videos
-   - Overall engagement metrics
-   - Growth metrics
+This project is configured for deployment on Vercel. See [VERCEL_DEPLOYMENT.md](./VERCEL_DEPLOYMENT.md) for detailed deployment instructions.
 
 ## Project Structure
 
-- `/client` - React frontend application
-- `/server` - Express.js backend
-- `/shared` - Shared types and schemas
-- `/drizzle` - Database schema and migrations
+- `/client` - Frontend React application
+- `/server` - Express API server
+- `/shared` - Shared types and database schema
+- `/api` - Serverless functions for Vercel deployment
 
 ## License
 
 MIT
-
-## Credits
-
-Developed by @dimtrivahlas
